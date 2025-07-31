@@ -23,6 +23,18 @@ func StartFuzzing(cfg config.Config) {
 			rawHeaders = nil
 		}
 	}
+	if rawHeaders == nil {
+		rawHeaders = make(map[string]string)
+	}
+
+	// ✅ AJOUT cookies + auth
+	if cfg.Cookies != "" {
+		rawHeaders["Cookie"] = cfg.Cookies
+	}
+	if cfg.Auth != "" {
+		rawHeaders["Authorization"] = cfg.Auth
+	}
+
 	var targets []string
 
 	if cfg.URLList != "" {
@@ -45,37 +57,11 @@ func StartFuzzing(cfg config.Config) {
 		return
 	}
 
-	// 📏 Enregistrement de la baseline (réponse sans payload)
-	baselineURL := strings.Replace(cfg.URL, "FUZZ", "", -1)
-
-	var baselineBody map[string]interface{}
-	if cfg.RawBody != "" {
-		bodyStr := strings.Replace(cfg.RawBody, "FUZZ", "", -1)
-		if err := json.Unmarshal([]byte(bodyStr), &baselineBody); err != nil {
-			fmt.Println("❌ Erreur parsing baseline body:", err)
-			baselineBody = nil
-		}
-	}
-
-	baselineHeaders := make(map[string]string)
-	if rawHeaders != nil {
-		for k, v := range rawHeaders {
-			baselineHeaders[k] = strings.Replace(v, "FUZZ", "", -1)
-		}
-	}
-
-	fmt.Println("📏 Enregistrement de la baseline...")
-	baselineStatus, baselineResp := utils.SendRequest(cfg.Method, baselineURL, baselineBody, baselineHeaders)
-	utils.SetBaseline(baselineResp)
-	fmt.Printf("🧬 Baseline enregistrée (%d chars, status %d)\n\n", len(baselineResp), baselineStatus)
-
-	// 🔁 Lancement du fuzzing
-	// Concurrency control
+	// 📏 Baseline pour chaque URL
 	sem := make(chan struct{}, cfg.Threads)
 	var wg sync.WaitGroup
 
 	for _, targetURL := range targets {
-		// 📏 Enregistrement de la baseline pour chaque URL
 		baselineURL := strings.Replace(targetURL, "FUZZ", "", -1)
 
 		var baselineBody map[string]interface{}
@@ -88,10 +74,8 @@ func StartFuzzing(cfg config.Config) {
 		}
 
 		baselineHeaders := make(map[string]string)
-		if rawHeaders != nil {
-			for k, v := range rawHeaders {
-				baselineHeaders[k] = strings.Replace(v, "FUZZ", "", -1)
-			}
+		for k, v := range rawHeaders {
+			baselineHeaders[k] = strings.Replace(v, "FUZZ", "", -1)
 		}
 
 		fmt.Printf("📏 Baseline pour %s\n", targetURL)
@@ -99,7 +83,7 @@ func StartFuzzing(cfg config.Config) {
 		utils.SetBaseline(baselineResp)
 		fmt.Printf("🧬 Baseline enregistrée (%d chars, status %d)\n", len(baselineResp), baselineStatus)
 
-		// Fuzzing pour cette URL
+		// Fuzzing
 		for _, payload := range allPayloads {
 			wg.Add(1)
 			sem <- struct{}{}
@@ -124,7 +108,7 @@ func StartFuzzing(cfg config.Config) {
 					headers[k] = strings.Replace(v, "FUZZ", p, -1)
 				}
 
-				// Détection de point d’injection
+				// Détection point d'injection
 				injectionPoint := "URL"
 				if cfg.RawBody != "" && strings.Contains(cfg.RawBody, "FUZZ") {
 					injectionPoint = "Body"

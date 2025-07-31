@@ -16,6 +16,8 @@ type Config struct {
 	Wordlist    string
 	Threads     int
 	URLList     string
+	Cookies     string
+	Auth        string
 }
 
 func ParseArgs() Config {
@@ -28,6 +30,8 @@ func ParseArgs() Config {
 	wordlist := flag.String("wordlist", "", "Chemin vers une wordlist personnalisée")
 	threads := flag.Int("threads", 10, "Nombre de threads (goroutines) pour le fuzzing concurrent")
 	urlList := flag.String("urllist", "", "Chemin vers un fichier contenant une liste d’URLs à fuzz (1 par ligne)")
+	var auth = flag.String("auth", "", "Header Authorization (ex: Bearer <token>)")
+	var cookies = flag.String("cookies", "", "Cookies HTTP à inclure (ex: sessionid=abc123; token=xyz)")
 
 	flag.Parse()
 
@@ -44,5 +48,7 @@ func ParseArgs() Config {
 		Wordlist:    *wordlist,
 		Threads:     *threads,
 		URLList:     *urlList,
+		Cookies:     *cookies,
+		Auth:        *auth,
 	}
 }
