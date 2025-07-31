@@ -14,6 +14,7 @@ type Config struct {
 	Headers     string
 	ContentType string
 	Wordlist    string
+	Threads     int
 }
 
 func ParseArgs() Config {
@@ -24,6 +25,7 @@ func ParseArgs() Config {
 	rawBody := flag.String("body", "", "Corps JSON brut à modifier (utiliser FUZZ pour injection)")
 	headers := flag.String("headers", "", "Headers HTTP au format JSON (utiliser FUZZ pour injection)")
 	wordlist := flag.String("wordlist", "", "Chemin vers une wordlist personnalisée")
+	threads := flag.Int("threads", 10, "Nombre de threads (goroutines) pour le fuzzing concurrent")
 
 	flag.Parse()
 
@@ -38,5 +40,6 @@ func ParseArgs() Config {
 		Headers:     *headers,
 		ContentType: *contentType,
 		Wordlist:    *wordlist,
+		Threads:     *threads,
 	}
 }

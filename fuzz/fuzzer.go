@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 )
 
 func StartFuzzing(cfg config.Config) {
@@ -48,60 +49,75 @@ func StartFuzzing(cfg config.Config) {
 	fmt.Printf("🧬 Baseline enregistrée (%d chars, status %d)\n\n", len(baselineResp), baselineStatus)
 
 	// 🔁 Lancement du fuzzing
+	// Concurrency control
+	sem := make(chan struct{}, cfg.Threads)
+	var wg sync.WaitGroup
+
 	for _, payload := range allPayloads {
-		finalURL := strings.Replace(cfg.URL, "FUZZ", payload, -1)
+		wg.Add(1)
+		sem <- struct{}{} // bloque si trop de threads
 
-		var requestBody map[string]interface{}
-		if cfg.RawBody != "" {
-			bodyStr := strings.Replace(cfg.RawBody, "FUZZ", payload, -1)
-			if err := json.Unmarshal([]byte(bodyStr), &requestBody); err != nil {
-				fmt.Println("❌ Erreur parsing body:", err)
-				continue
+		go func(p string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			finalURL := strings.Replace(cfg.URL, "FUZZ", p, -1)
+
+			var requestBody map[string]interface{}
+			if cfg.RawBody != "" {
+				bodyStr := strings.Replace(cfg.RawBody, "FUZZ", p, -1)
+				if err := json.Unmarshal([]byte(bodyStr), &requestBody); err != nil {
+					fmt.Println("❌ Erreur parsing body:", err)
+					return
+				}
 			}
-		}
 
-		headers := make(map[string]string)
-		for k, v := range rawHeaders {
-			headers[k] = strings.Replace(v, "FUZZ", payload, -1)
-		}
-
-		// 🎯 Détection du point d’injection
-		injectionPoint := "URL"
-		if cfg.RawBody != "" && strings.Contains(cfg.RawBody, "FUZZ") {
-			injectionPoint = "Body"
-		}
-		for k, v := range rawHeaders {
-			if strings.Contains(v, "FUZZ") {
-				injectionPoint = fmt.Sprintf("Header:%s", k)
-				break
+			headers := make(map[string]string)
+			for k, v := range rawHeaders {
+				headers[k] = strings.Replace(v, "FUZZ", p, -1)
 			}
-		}
 
-		fmt.Printf("🚀 [%s] %s\n", cfg.Method, finalURL)
-
-		status, body := utils.SendRequest(cfg.Method, finalURL, requestBody, headers)
-		suspicious, reason := utils.IsResponseSuspicious(status, body, payload)
-
-		if suspicious {
-			fmt.Printf("🔥 Possible vulnerability detected! Reason: %s\n", reason)
-			fmt.Println("🧪 Payload:", payload)
-			fmt.Println("📍 Injection:", injectionPoint)
-			fmt.Println("📡 Response:", body)
-			fmt.Println("--------------------------------------------------")
-
-			result := types.FuzzResult{
-				Method:    cfg.Method,
-				URL:       finalURL,
-				Payload:   payload,
-				Reason:    reason,
-				Response:  body,
-				Injection: injectionPoint,
+			// Détection de point d’injection
+			injectionPoint := "URL"
+			if cfg.RawBody != "" && strings.Contains(cfg.RawBody, "FUZZ") {
+				injectionPoint = "Body"
 			}
-			saveResult(result)
-		}
+			for k, v := range rawHeaders {
+				if strings.Contains(v, "FUZZ") {
+					injectionPoint = fmt.Sprintf("Header:%s", k)
+					break
+				}
+			}
 
-		fmt.Printf("🔎 [%d] %s\n\n", status, body)
+			fmt.Printf("🚀 [%s] %s\n", cfg.Method, finalURL)
+
+			status, body := utils.SendRequest(cfg.Method, finalURL, requestBody, headers)
+			suspicious, reason := utils.IsResponseSuspicious(status, body, p)
+
+			if suspicious {
+				fmt.Printf("🔥 Possible vulnerability detected! Reason: %s\n", reason)
+				fmt.Println("🧪 Payload:", p)
+				fmt.Println("📍 Injection:", injectionPoint)
+				fmt.Println("📡 Response:", body)
+				fmt.Println("--------------------------------------------------")
+
+				result := types.FuzzResult{
+					Method:    cfg.Method,
+					URL:       finalURL,
+					Payload:   p,
+					Reason:    reason,
+					Response:  body,
+					Injection: injectionPoint,
+				}
+				saveResult(result)
+			}
+
+			fmt.Printf("🔎 [%d] %s\n\n", status, body)
+
+		}(payload)
 	}
+
+	wg.Wait()
 }
 
 func saveResult(res types.FuzzResult) {
