@@ -15,7 +15,6 @@ import (
 func StartFuzzing(cfg config.Config) {
 	allPayloads := payloads.GetAllPayloads(cfg.Category, cfg.Encodings, cfg.Wordlist)
 
-	// 🔄 Décodage des headers JSON en brut
 	var rawHeaders map[string]string
 	if cfg.Headers != "" {
 		if err := json.Unmarshal([]byte(cfg.Headers), &rawHeaders); err != nil {
@@ -27,7 +26,6 @@ func StartFuzzing(cfg config.Config) {
 		rawHeaders = make(map[string]string)
 	}
 
-	// ✅ AJOUT cookies + auth
 	if cfg.Cookies != "" {
 		rawHeaders["Cookie"] = cfg.Cookies
 	}
@@ -57,7 +55,6 @@ func StartFuzzing(cfg config.Config) {
 		return
 	}
 
-	// 📏 Baseline pour chaque URL
 	sem := make(chan struct{}, cfg.Threads)
 	var wg sync.WaitGroup
 
@@ -83,7 +80,6 @@ func StartFuzzing(cfg config.Config) {
 		utils.SetBaseline(baselineResp)
 		fmt.Printf("🧬 Baseline enregistrée (%d chars, status %d)\n", len(baselineResp), baselineStatus)
 
-		// Fuzzing
 		for _, payload := range allPayloads {
 			wg.Add(1)
 			sem <- struct{}{}
@@ -108,7 +104,6 @@ func StartFuzzing(cfg config.Config) {
 					headers[k] = strings.Replace(v, "FUZZ", p, -1)
 				}
 
-				// Détection point d'injection
 				injectionPoint := "URL"
 				if cfg.RawBody != "" && strings.Contains(cfg.RawBody, "FUZZ") {
 					injectionPoint = "Body"

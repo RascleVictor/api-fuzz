@@ -17,7 +17,6 @@ func SendRequest(method, target string, body map[string]interface{}, headers map
 
 	switch method {
 	case "GET", "DELETE":
-		// Encoder les params en query string
 		params := url.Values{}
 		for k, v := range body {
 			params.Add(k, fmt.Sprintf("%v", v))
@@ -30,7 +29,6 @@ func SendRequest(method, target string, body map[string]interface{}, headers map
 		}
 		req, err = http.NewRequest(method, fullURL, nil)
 	default:
-		// Body JSON
 		jsonData, _ := json.Marshal(body)
 		req, err = http.NewRequest(method, target, bytes.NewBuffer(jsonData))
 		req.Header.Set("Content-Type", "application/json")
@@ -41,7 +39,6 @@ func SendRequest(method, target string, body map[string]interface{}, headers map
 		return 0, ""
 	}
 
-	// ➕ Ajouter les headers personnalisés
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}

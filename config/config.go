@@ -19,6 +19,7 @@ type Config struct {
 	URLList     string
 	Cookies     string
 	Auth        string
+	Domain      string
 }
 
 func ParseArgs() Config {
@@ -40,6 +41,7 @@ func ParseArgs() Config {
 	auth := flag.String("auth", "", "Header Authorization (ex: Bearer <token>)")
 	cookies := flag.String("cookies", "", "Cookies HTTP à inclure (ex: sessionid=abc123; token=xyz)")
 	contentType := flag.String("contenttype", "application/json", "Type de contenu à envoyer")
+	domain := flag.String("domain", "", "Nom de domaine pour collecter automatiquement des URLs avec gau/wayback/paramspider")
 
 	flag.Parse()
 
@@ -56,5 +58,6 @@ func ParseArgs() Config {
 		URLList:     *urlList,
 		Cookies:     *cookies,
 		Auth:        *auth,
+		Domain:      *domain,
 	}
 }
