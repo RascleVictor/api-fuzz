@@ -51,7 +51,7 @@ func main() {
 		fmt.Printf("🚀 %d URLs fuzzables extraites depuis les sous-domaines.\n", len(fuzzedUrls))
 	}
 
-	if cfg.URL == "" && cfg.URLList == "" && cfg.Domain != "" && cfg.URLList == "" {
+	if cfg.URL == "" && cfg.Domain != "" && cfg.URLList == "" {
 		fmt.Println("🔍 Aucune URL extraite via subfinder, fallback sur domaine principal.")
 
 		gauUrls, err := recon.RunGau(cfg.Domain)
