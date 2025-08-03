@@ -106,3 +106,25 @@ func InjectFuzzInUrls(urls []string) []string {
 
 	return fuzzed
 }
+
+func RunSubfinder(domain string) ([]string, error) {
+	cmd := exec.Command("subfinder", "-silent", "-d", domain)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	var subs []string
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			subs = append(subs, line)
+		}
+	}
+	cmd.Wait()
+	return subs, nil
+}
