@@ -22,6 +22,12 @@ func main() {
 		}
 		fmt.Printf("✅ %d sous-domaines trouvés.\n", len(subdomains))
 
+		err = os.WriteFile("subdomains.txt", []byte(strings.Join(subdomains, "\n")), 0644)
+		if err != nil {
+			log.Fatalf("❌ Erreur écriture fichier subdomains.txt : %v", err)
+		}
+		fmt.Println("📄 Fichier subdomains.txt généré.")
+
 		var allUrls []string
 
 		for _, sub := range subdomains {
@@ -31,7 +37,12 @@ func main() {
 			waybackUrls, _ := recon.RunWaybackurls(sub)
 			paramUrls, _ := recon.RunParamSpider(sub)
 
-			merged := recon.MergeAndDeduplicate(gauUrls, waybackUrls, paramUrls)
+			getJsUrls, err := recon.RunGetJS(sub)
+			if err != nil {
+				fmt.Printf("⚠️ getJS a échoué pour %s : %v\n", sub, err)
+			}
+
+			merged := recon.MergeAndDeduplicate(gauUrls, waybackUrls, paramUrls, getJsUrls)
 			allUrls = append(allUrls, merged...)
 		}
 
@@ -39,12 +50,18 @@ func main() {
 			log.Fatalf("⚠️ Aucune URL récupérée sur les sous-domaines.")
 		}
 
+		err = os.WriteFile("urls.txt", []byte(strings.Join(allUrls, "\n")), 0644)
+		if err != nil {
+			log.Fatalf("❌ Erreur écriture fichier urls.txt : %v", err)
+		}
+		fmt.Println("📄 Fichier urls.txt généré (URLs non modifiées).")
+
 		fuzzedUrls := recon.InjectFuzzInUrls(allUrls)
 
 		tmpFile := "fuzzed-subdomains.txt"
 		err = os.WriteFile(tmpFile, []byte(strings.Join(fuzzedUrls, "\n")), 0644)
 		if err != nil {
-			log.Fatalf("❌ Erreur écriture fichier : %v", err)
+			log.Fatalf("❌ Erreur écriture fichier fuzzed-subdomains.txt : %v", err)
 		}
 
 		cfg.URLList = tmpFile
@@ -69,18 +86,29 @@ func main() {
 			log.Fatalf("❌ Erreur paramspider : %v", err)
 		}
 
-		allUrls := recon.MergeAndDeduplicate(gauUrls, waybackUrls, paramspiderUrls)
+		getJsUrls, err := recon.RunGetJS(cfg.Domain)
+		if err != nil {
+			fmt.Printf("⚠️ getJS a échoué pour %s : %v\n", cfg.Domain, err)
+		}
+
+		allUrls := recon.MergeAndDeduplicate(gauUrls, waybackUrls, paramspiderUrls, getJsUrls)
 
 		if len(allUrls) == 0 {
 			log.Fatalf("⚠️ Aucune URL récupérée pour %s", cfg.Domain)
 		}
+
+		err = os.WriteFile("urls.txt", []byte(strings.Join(allUrls, "\n")), 0644)
+		if err != nil {
+			log.Fatalf("❌ Erreur écriture fichier urls.txt : %v", err)
+		}
+		fmt.Println("📄 Fichier urls.txt généré (domaine principal).")
 
 		fuzzedUrls := recon.InjectFuzzInUrls(allUrls)
 
 		tmpFile := "fuzzed-urls.txt"
 		err = os.WriteFile(tmpFile, []byte(strings.Join(fuzzedUrls, "\n")), 0644)
 		if err != nil {
-			log.Fatalf("❌ Erreur écriture fichier d'URL : %v", err)
+			log.Fatalf("❌ Erreur écriture fichier fuzzed-urls.txt : %v", err)
 		}
 
 		cfg.URLList = tmpFile

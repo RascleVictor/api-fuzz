@@ -128,3 +128,22 @@ func RunSubfinder(domain string) ([]string, error) {
 	cmd.Wait()
 	return subs, nil
 }
+
+func RunGetJS(target string) ([]string, error) {
+	cmd := exec.Command("getjs", "-u", target, "-silent")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(string(output), "\n")
+	var results []string
+	seen := make(map[string]bool)
+	for _, line := range lines {
+		if line != "" && !seen[line] {
+			results = append(results, line)
+			seen[line] = true
+		}
+	}
+	return results, nil
+}
