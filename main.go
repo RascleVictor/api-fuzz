@@ -28,6 +28,21 @@ func main() {
 		}
 		fmt.Println("📄 Fichier subdomains.txt généré.")
 
+		fmt.Println("⚡ Lancement de Naabu pour scan des ports...")
+
+		naabuResults, err := recon.RunNaabu(subdomains)
+		if err != nil {
+			log.Printf("⚠️ Naabu a échoué : %v", err)
+		} else {
+			fmt.Printf("✅ %d hôtes avec ports ouverts trouvés.\n", len(naabuResults))
+			err = os.WriteFile("naabu.txt", []byte(strings.Join(naabuResults, "\n")), 0644)
+			if err != nil {
+				log.Printf("❌ Erreur écriture fichier naabu.txt : %v", err)
+			} else {
+				fmt.Println("📄 Fichier naabu.txt généré.")
+			}
+		}
+
 		var allUrls []string
 
 		for _, sub := range subdomains {

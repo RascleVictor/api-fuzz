@@ -130,7 +130,7 @@ func RunSubfinder(domain string) ([]string, error) {
 }
 
 func RunGetJS(target string) ([]string, error) {
-	cmd := exec.Command("getjs", "-u", target, "-silent")
+	cmd := exec.Command("getJS", "-u", target, "-silent")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -146,4 +146,40 @@ func RunGetJS(target string) ([]string, error) {
 		}
 	}
 	return results, nil
+}
+
+func RunNaabu(domains []string) ([]string, error) {
+	cmd := exec.Command("naabu", "-silent", "-host", "-")
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, err
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	go func() {
+		defer stdin.Close()
+		for _, domain := range domains {
+			_, _ = stdin.Write([]byte(domain + "\n"))
+		}
+	}()
+
+	var results []string
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			results = append(results, line)
+		}
+	}
+
+	err = cmd.Wait()
+	return results, err
 }
